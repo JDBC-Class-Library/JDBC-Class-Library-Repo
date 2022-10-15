@@ -174,7 +174,7 @@ order by orderid asc
 -- Tables // Product, Category, Supplier 
 
 use Northwinds2022TSQLV7;
-
+ 
 with Cheapest as (
     select min(P.UnitPrice) as price,
         S.SupplierId as supplierid
