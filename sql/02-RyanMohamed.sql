@@ -1,4 +1,5 @@
---SIMPLE QUERIES-----------------------------
+-- SIMPLE QUERIES -----------------------------
+
 
 -- 01 // Return the 100 fastest fully completed work orders.
 -- Database // AdventureWorks2017
@@ -63,7 +64,8 @@
 -- order by totalsaleprice desc
 
 
---MEDIUM QUERIES-----------------------------
+-- MEDIUM QUERIES -----------------------------
+
 
 -- 01 // Return all scraped products with the reason they were scrapped
 -- Database // AdventureWorks2017
@@ -220,18 +222,43 @@
 -- Database // WideworldImportersDW
 -- Tables // Stock Holding, Stock Item
 
+-- use WideWorldImportersDW;
+
+-- with ItemQty as (
+--     select SI.[Stock Item Key] as itemkey,
+--         SI.[Stock Item] as itemname,
+--         SH.[Quantity On Hand] as qty
+--     from Dimension.[Stock Item] as SI inner join Fact.[Stock Holding] as SH
+--         on SI.[Stock Item Key] = SH.[Stock Item Key]
+-- )
+-- select itemkey, itemname, qty, 
+--     concat(
+--         round(100 * qty / cast((select sum([Quantity On Hand]) from Fact.[Stock Holding]) as float), 3),
+--         '%') as total
+-- from ItemQty
+-- order by total desc
+
+
+-- COMPLEX QUERIES -----------------------------
+
+
+-- 01 // Return the sales person responsible for the most expensive order in each state
+-- Database // WideworldImportersDW
+-- Tables // Employee, City, Order
+
 use WideWorldImportersDW;
 
-with ItemQty as (
-    select SI.[Stock Item Key] as itemkey,
-        SI.[Stock Item] as itemname,
-        SH.[Quantity On Hand] as qty
-    from Dimension.[Stock Item] as SI inner join Fact.[Stock Holding] as SH
-        on SI.[Stock Item Key] = SH.[Stock Item Key]
-)
-select itemkey, itemname, qty, 
-    concat(
-        round(100 * qty / cast((select sum([Quantity On Hand]) from Fact.[Stock Holding]) as float), 3),
-        '%') as total
-from ItemQty
-order by total desc
+drop function if exists Dimension.GetMaxOrder
+go
+
+create function Dimension.GetMaxOrder
+    (@cid as int) returns TABLE
+as 
+return  
+    select C.[City Key] as citykey, C.[State Province] as stateprovince
+    from Dimension.[City] as C inner join Fact.[Order] as O
+        on C.[City Key] = O.[City Key]
+    where C.[City Key] = @cid
+go
+
+select citykey, stateprovince from Dimensions.GetMaxOrders(1143) as O
