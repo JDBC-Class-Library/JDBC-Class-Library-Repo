@@ -171,7 +171,7 @@ order by orderid asc
 -- 06 // Get the cheapest (in-production / not discontinued) product sold by each supplier
 --    // and it's description
 -- Database // NorthWinds2020TSQL7
--- Tables // Product, Category, Supplier
+-- Tables // Product, Category, Supplier 
 
 use Northwinds2022TSQLV7;
 
