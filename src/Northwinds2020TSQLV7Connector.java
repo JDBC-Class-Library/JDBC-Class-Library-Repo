@@ -3,12 +3,12 @@
  * Connector for AdventureWorks2017 database
  * @author Almon
  */
-public class AdventureWorks2017Connector extends Connector {
+public class Northwinds2020TSQLV7Connector extends Connector {
 	/**
 	 * Constructor that passes specific database name to Connector
 	 */
-	public AdventureWorks2017Connector() {
-		super("AdventureWorks2017;");	
+	public Northwinds2020TSQLV7Connector() {
+		super("Northwinds2020TSQLV7;");	
 	}
 	
 	/**
@@ -17,6 +17,6 @@ public class AdventureWorks2017Connector extends Connector {
 	 */
 	@Override
 	void printDatabaseName() {
-		System.out.println("AdventureWorks2017");
+		System.out.println("Northwinds2020TSQLV7");
 	}
 }
