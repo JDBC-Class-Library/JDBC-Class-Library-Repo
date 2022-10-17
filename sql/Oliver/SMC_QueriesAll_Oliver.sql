@@ -72,7 +72,7 @@ GO
 USE AdventureWorks2017;
 
  WITH reverseCte AS(
-    SELECT Distinct top 20 PP.Name as reverseName, COUNT(*) as CountryAggregationCount
+    SELECT Distinct top 20 PP.Name as OrignalName, COUNT(*) as CountryAggregationCount
     FROM Production.WorkOrder as PW
         Inner join Production.Product as PP
         ON pw.ProductID = pp.ProductID
@@ -81,8 +81,9 @@ USE AdventureWorks2017;
   
       )
 
-SELECT reverseName, CountryAggregationCount
+SELECT OrignalName, CountryAggregationCount
 FROM reverseCte
+
 
 
 
