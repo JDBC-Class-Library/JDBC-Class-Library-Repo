@@ -5,59 +5,73 @@ select p.productid, p.Name
 from production.product as p
 	left outer join purchasing.purchaseOrderDetail as od
 		on od.productid = p.productid
-where od.PurchaseOrderID is null;
+where od.PurchaseOrderID is null
+ORDER BY p.productid
+FOR JSON PATH, ROOT ('UnsoldProducts'), INCLUDE_NULL_VALUES;
 
+--Trying the same query with subquery
+use AdventureWorks2017
+SELECT p.productId, p.[name] 
+FROM production.Product AS p
+WHERE p.productId NOT IN 
+	  (
+		SELECT pod.productid FROM Purchasing.PurchaseOrderDetail AS pod
+	  )
+ORDER BY p.ProductID
 --MEDIUM 1 [Includes Subquery in WHERE and SQL functions: MAX, CAST]
 --Proposition: What is the highest cost of purchased orders placed per each day? Which employee serviced these orders?
 --purchaseorderheader is the summary of orders. purchaseorderdetails shows every item placed for each order. 
 use AdventureWorks2017
-select CAST (OrderDate AS DATE) as OrderDate, CAST (TotalDue AS NUMERIC (10,2)) as MaxOrderValue, EmployeeId
+select CAST (OrderDate AS DATE) as OrderDate, FORMAT (TotalDue, 'C') as MaxOrderValue, EmployeeId
 from Purchasing.PurchaseOrderHeader as O1
 where TotalDue = (select MAX (O2.TotalDue)
 				  from Purchasing.PurchaseOrderHeader as O2
 				  where O2.OrderDate = O1.OrderDate)
 order by OrderDate
 
+
 --Trying the same query with Group By
 use AdventureWorks2017
 select CAST (OH.OrderDate AS DATE) as OrderDate
-      , CAST (MAX(OH.TotalDue) AS NUMERIC (10,2)) as MaxOrderValue
+      , FORMAT (MAX(OH.TotalDue), 'C') as MaxOrderValue
 from Purchasing.PurchaseOrderHeader as OH
 group by orderDate
 order by orderDate
 
+
+
+
 --MEDIUM 2 [Includes subquery inside SELECT and SQL function:SUM]
 --Proposition: Show percentage of each employee's order total as a ratio of the employee's total orders serviced. 
 use AdventureWorks2017
-select employeeId, PurchaseOrderId, TotalDue 
-	   ,(100. * O1.TotalDue/(select sum(TotalDue)	
+select employeeId, PurchaseOrderId, format(TotalDue,'C') AS TotalDue
+	   ,(format( O1.TotalDue/(select sum(TotalDue)	
 		                     from purchasing.PurchaseOrderHeader as O2
-							 where O2.EmployeeID = O1.EmployeeID)
+							 where O2.EmployeeID = O1.EmployeeID), 'P')
 		) as PtyOfTotalEmployeeOrder
-		, (select sum(TotalDue)	
+		, format ((select sum(TotalDue)	
 		   from purchasing.PurchaseOrderHeader as O3
-           where O3.EmployeeID = O1.EmployeeID)as employeeTotal
+           where O3.EmployeeID = O1.EmployeeID),'C') as employeeTotal
 from purchasing.PurchaseOrderHeader as O1
 Order by EmployeeId, PurchaseOrderID
 
 --COMPLEX 1
 --Proposition: Show percentage of each employee's order total as a ratio of the employee's total orders serviced. Also show percentage of the employee's order against all orders
+
 use AdventureWorks2017
 select employeeId, PurchaseOrderId, TotalDue 
-	   ,  (100. * O1.TotalDue/(select sum(TotalDue)	
+	   ,  FORMAT((100. * O1.TotalDue/(select sum(O2.TotalDue)	
 		                     from purchasing.PurchaseOrderHeader as O2
 							 where O2.EmployeeID = O1.EmployeeID)
-		  ) as PtyOfTotalEmployeeOrder
-		, (select sum(TotalDue)	
+		  ),'P') as PtyOfTotalEmployeeOrder
+		, FORMAT((select sum(O2.TotalDue)	
 		   from purchasing.PurchaseOrderHeader as O2
-           where O2.EmployeeID = O1.EmployeeID)as employeeTotal
-	    , sum(TotalDue) as SumOfAllOrdersCost
-	    , (100. * (select sum(TotalDue)	
-				  from purchasing.PurchaseOrderHeader as O2
-				  where O2.EmployeeID = O1.EmployeeID)/sum(TotalDue)) as PtyOfTotalOrders
+           where O2.EmployeeID = O1.EmployeeID),'C')as employeeTotal
+	    , Format (100. * O1.TotalDue/ (SELECT SUM(O2.TotalDue) FROM purchasing.PurchaseOrderHeader as O2),'P') AS PtyOFAllTotal
+		, FORMAT((SELECT SUM(O2.TotalDue) FROM purchasing.PurchaseOrderHeader as O2), 'C') AS allTotal
 from purchasing.PurchaseOrderHeader as O1
-group by PurchaseOrderID, EmployeeId
-Order by PurchaseOrderID, EmployeeID
+Order BY EmployeeID,  PurchaseOrderID
+FOR JSON PATH, ROOT ('EmployeeTotalSalesPTY'), INCLUDE_NULL_VALUES
 
 --MEDIUM 3 [Inner join, group by. SQL Function: coalesce, count] 
 --Proposition: How many of each color have we sold?
@@ -135,10 +149,51 @@ where cur.CalendarYear = N'2013'
 order by curYear, curQuarter;
 
 
---COMPLEX 7
---Proposition
+--COMPLEX 7 [Uses scalar function, correlated subquery, table expression]
+--Proposition: Our company is having a special discount for families with children. The discount amount varies by the number of children. Show how much discount
+--each family will receive.
 use AdventureWorksDW2017;
-select * from dimCustomer;
+GO
+CREATE FUNCTION dbo.ChildrenDiscount
+(
+	@TotalChildren as int
+)
+RETURNS INT 
+AS
+BEGIN
+	DECLARE @Result INT;
+
+	SELECT @Result = CASE 
+						WHEN @TotalChildren > 5 THEN 25
+						WHEN @totalChildren BETWEEN 2 AND 4 THEN 15
+						WHEN @TotalChildren > 0 THEN 10
+						ELSE 0
+	
+					END;
+
+	RETURN @Result;
+END;
+
+use AdventureWorksDW2017;
+WITH SalesTotal AS 
+(	SELECT  S1.CustomerKey, S1.SalesOrderNumber, 
+		   (SELECT SUM(S2.SalesAmount)
+			FROM dbo.FactInternetSales AS S2
+			WHERE S2.SalesOrderNumber = S1.SalesOrderNumber) AS TotalOfSales
+			, E.EmployeeKey
+	FROM dbo.FactInternetSales AS S1
+		INNER JOIN dbo.DimSalesTerritory AS T 
+			ON T.SalesTerritoryKey = S1.SalesTerritoryKey
+		INNER JOIN dbo.DimEmployee AS E
+			ON E.SalesTerritoryKey = T.SalesTerritoryKey
+)
+
+SELECT DISTINCT C.customerKey, C.TotalChildren, 
+		dbo.ChildrenDiscount (C.TotalChildren) AS discount
+		, S.TotalOfSales
+FROM SalesTotal AS S
+	INNER JOIN dbo.dimCustomer AS C
+		ON C.CustomerKey = S.CustomerKey
 
 
 --EASY 3 
@@ -164,6 +219,7 @@ where oa.customerRegion is null
 
 --MEDIUM 8 [Inner join with VIEW, SQL Function: Row_Number(), coalesce, concat]
 --Proposition: Give the owners and sales agents their own number. Replace the empty/null customer region with more information.
+use Northwinds2022TSQLV7
 SELECT oa.CustomerContactTitle, oa.CustomerId
        , coalesce (oa.CustomerRegion, N'No Region')  as CustomerRegion
 	   ,Row_Number() over (partition by oa.CustomerContactTitle order by oa.customerID) as rowNum
@@ -172,7 +228,18 @@ SELECT oa.CustomerContactTitle, oa.CustomerId
 from Utils.ownersAndAgents as oa
 inner join Sales.Customer as c
 	on c.customerId = oa.customerId
+ORDER BY oa.CustomerContactTitle
+FOR JSON PATH, ROOT ('OwnersAndAgents'), INCLUDE_NULL_VALUES;
 
+--Simplifying the query above
+use Northwinds2022TSQLV7
+SELECT CustomerContactTitle, CustomerId
+       , coalesce (CustomerRegion, N'No Region') as CustomerRegion
+	   ,Row_Number() over (partition by CustomerContactTitle order by oa.customerID) as rowNum
+	   ,concat(CustomerContactTitle,(Row_Number() over (partition by CustomerContactTitle order by oa.customerID))) as newLabel
+	   ,c.CustomerPostalCode
+FROM Sales.Customer
+WHERE CustomerContactTitle INIIIINNERRDER BY oa.CustomerContactTitle
 
 
 --MEDIUM 5 [Uses OrderTotalByYear VIEW to calculate running total]
@@ -188,6 +255,7 @@ from Sales.[Order]
 group by year(orderDate)
 go
 
+use Northwinds2022TSQLV7
 select [year], TotalFreightCost
 		, (select sum(O2.TotalFreightCost)
 		   from Sales.OrderTotalByYear as O2
@@ -195,6 +263,7 @@ select [year], TotalFreightCost
 		   )as runningTotal
 from Sales.OrderTotalByYear as O1
 order by [year]
+FOR JSON PATH, ROOT ('OrderTotalsByYear'), INCLUDE_NULL_VALUES
 
 --MEDIUM 6 [Cross join with the dbo.Nums table, dateAdd function used]
 --Proposition: In our company, we celebrate an employee's work anniversary for a week. Print out the list of 7 days we must celebrate each employee's work anniversay.
@@ -203,14 +272,14 @@ use Northwinds2022TSQLV7
 select employeeid, hiredate
 from humanresources.employee;
 
-select employeeid, dateadd (day, d.n-1, dateadd(year, 1, e.HireDate)) as DateToCelebrate
+select e.employeeid, dateadd (day, d.n-1, dateadd(year, 1, e.HireDate)) as DateToCelebrate
 from HumanResources.Employee e
 	cross join dbo.Nums as d
 where d.n <= 7
-order by employeeid, DateToCelebrate;
+order by e.employeeid, DateToCelebrate;
 
 --COMPLEX 5 [Use of Inline Table-Valued Function, CROSS APPLY, SQL or scalar function]
--- Find out the top 3 most expensive items each customer has every purchased.
+-- Proposition: Find out the top 3 most expensive items each customer has every purchased.
 use Northwinds2022TSQLV7;
 drop function if exists dbo.TopPriceItems;
 go
@@ -227,7 +296,7 @@ as
 			inner join Sales.[Order] as o
 				on o.orderId = od.orderId
 		where o.customerId = @customerId
-		order by unitPrice desc
+		order by od.unitPrice desc
 go
 
 
@@ -239,7 +308,28 @@ SELECT c.customerId
 	   , row_number() over(partition by c.customerId order by a.unitPrice DESC) as number
 from sales.Customer as c
 	cross apply dbo.TopPriceItems (3, c.customerId) as a
-order by c.customerId, a.UnitPrice desc
+order by c.customerId, a.UnitPrice DESC
+FOR JSON PATH, ROOT ('TopPriceItemsPerCustomer'), INCLUDE_NULL_VALUES
+
+--Complex 8 Recursive practice
+--Proposition: Find out each employee's managers
+
+use Northwinds2022TSQLV7;
+WITH EmployeeCTE AS
+(
+	SELECT EmployeeId, EmployeeManagerId, EmployeeFirstName, EmployeeLastName 
+	FROM HumanResources.employee
+	WHERE employeeid = 1
+
+	UNION ALL
+    
+	SELECT c.employeeid, c.employeemanagerid, c.employeefirstname, c.employeelastname
+	FROM employeeCTE p
+		INNER JOIN HumanResources.Employee AS C
+			ON c.EmployeeManagerId = p.EmployeeId
+)
+SELECT employeeid, employeemanagerid, employeefirstname, employeelastname
+FROM EmployeeCTE
 
 --EASY 4
 --Proposition: The recent hurricane has placed all air shipments on pause. Find a way to contact the customers whose orders require Air Freight and inform them of the delay.
@@ -302,14 +392,18 @@ order by numOfOrders desc
 
 --EASY 5
 --Proposition: Obtain first 200 orders and the stock items.
-use WideWorldImportersDW
-declare @topNumber as int = 200;
+USE PrestigeCars
 
-select top (@topNumber) o.[Order Key], O.[Stock Item Key], o.[Order Date Key], [Salesperson Key],
-	   I.[Stock Item]
-from fact.[order] as O
-	inner join dimension.[Stock Item] as I
-		on I.[Stock Item Key] = O.[Stock Item Key]
-order by o.[Order Key];
+SELECT TOP 200 
+	   s.SalesID,
+       s.CustomerID,
+       s.InvoiceNumber,
+       s.TotalSalePrice,
+       s.SaleDate,
+       s.ID,
+	   c.CustomerName
+FROM data.Sales AS s
+	INNER JOIN data.Customer AS c
+		ON c.CustomerID = s.CustomerID
 
 
