@@ -434,9 +434,45 @@ ORDER BY SO.CustomerId ASC
 
 
 
+GO
+
+USE WideWorldImporters;
+
+WITH FindCustomerNamesCTE AS (
+SELECT TOP 100 COUNT(DISTINCT Cust.CustomerID) AS UniqueCustomerCount, Cust.AmountExcludingTax AS exTax, TaxAmount AS Taxed
+FROM Sales.CustomerTransactions as CusT
+GROUP BY AmountExcludingTax, TaxAmount
+HAVING TaxAmount != 0.0
+
+)
+
+SELECT DISTINCT TOP 100 exTax, Taxed, UniqueCustomerCount, ordLIne.TaxRate
+FROM FindCustomerNamesCTE AS Cus
+INNER JOIN Sales.Orders AS Sales
+ON CustomerID = Sales.CustomerID 
+CROSS JOIN Sales.OrderLines as ordLine
+ 
 
 
 
+
+GO
+
+USE PrestigeCarsOriginal;
+
+WITH CustomerNameCountCTE AS (
+Select cus.CustomerName as cn, Count(cus.CustomerName) as UniqueNameCount, s.TotalSalePrice as TotalSalePrice, s.SaleDate as SaleDate
+from data.Customer as cus 
+INNER JOIN data.Sales as s
+on cus.CustomerID = s.CustomerID
+GROUP BY Cus.CustomerName, S.TotalSalePrice, S.SaleDate
+
+)
+
+
+SELECT cn as CustomerName, ModName.ModelName , UniqueNameCount , TotalSalePrice, SaleDate
+FROM CustomerNameCountCTE
+CROSS JOIN Data.Model AS ModName
 
 
 
