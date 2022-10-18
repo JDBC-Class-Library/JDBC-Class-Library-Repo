@@ -44,7 +44,7 @@ public abstract class Connector {
 	 * Retrieves Connection variable
 	 * @return Connection
 	 */
-	protected Connection getConnection() {
+	public Connection getConnection() {
 		return connection;
 	}
 
