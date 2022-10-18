@@ -1,6 +1,6 @@
-/*
 
---SIMPLE QUERIES
+
+---------------------------------SIMPLE QUERIES
 
 USE AdventureWorks2017;
 
@@ -53,7 +53,6 @@ right join data.Sales as s
 on cus.CustomerID = s.CustomerID
 
 
-*/
 
 
 
@@ -61,9 +60,9 @@ on cus.CustomerID = s.CustomerID
 
 
 
+-------------------------------------MEDIUM QURIES
 
-/*
---MEDIUM QURIES
+
 
 
 
@@ -228,7 +227,88 @@ FROM CustomerNameCountCTE
 
 
 
-*/
+
+
+
+
+
+--------------------------------------COMPLEX
+
+USE AdventureWorks2017;
+
+
+
+GO 
+
+--NO ACCESS TO USING FUNCTION AND COMPUTER COUDLNT INSTALL DOCKER
+--DROP FUNCTION IF EXISTS udfReverseString;
+--
+--GO 
+--
+--CREATE FUNCTION udfReverseString(@OrigName VARCHAR(200))
+--  RETURNS VARCHAR (2000)
+--  BEGIN
+--    return REVERSE(@OrigName);
+--  END;
+--
+--GO
+
+WITH originalCTE AS(
+    SELECT Distinct PP.ProductID as Product, PP.Name as OriginalName, COUNT(*) as CountryAggregationCount
+    FROM Production.WorkOrder as PW
+        Inner join Production.Product as PP
+        ON pw.ProductID = pp.ProductID
+        WHERE PW.OrderQty > 3
+        GROUP BY PP.ProductID, PP.Name
+  
+      )
+
+
+SELECT DISTINCT TOP 20 OriginalName, REVERSE(OriginalName) as Reversed, CountryAggregationCount, PT.TransactionID
+FROM originalCTE as oCTE
+INNER JOIN Production.TransactionHistory as PT
+ON  ProductID = PT.ProductID
+
+
+
+
+
+GO
+
+USE NORTHWINDS2022TSQLV7;
+
+
+--NO ACCESS TO USING FUNCTION AND COMPUTER COUDLNT INSTALL DOCKER
+--DROP FUNCTION IF EXISTS CustomerIDManipulator;
+--
+--GO  
+--
+--CREATE FUNCTION CustomerIDManipulator(@id INT)
+--RETURNS INT 
+--BEGIN
+--  RETURN @id * 10
+--
+--END
+--
+--GO
+
+
+
+WITH HR_CTE AS (
+SELECT EmployeeCountry, COUNT(*) AS numlocations
+FROM (SELECT EmployeeCountry, EmployeeRegion, EmployeeCity FROM HumanResources.Employee
+      UNION
+      SELECT CustomerCountry, CustomerRegion, CustomerCity FROM Sales.Customer) AS U
+ 
+
+GROUP BY EmployeeCountry
+)
+
+
+SELECT DISTINCT TOP 100 SO.CustomerId, EmployeeCountry, numlocations
+FROM HR_CTE as HR
+CROSS JOIN Sales.[Order] as SO
+ORDER BY SO.CustomerId ASC 
 
 
 
@@ -238,9 +318,119 @@ FROM CustomerNameCountCTE
 
 
 
+GO
+
+USE NORTHWINDS2022TSQLV7;
+
+
+--NO ACCESS TO USING FUNCTION AND COMPUTER COUDLNT INSTALL DOCKER
+--DROP FUNCTION IF EXISTS CustomerIDManipulator;
+--
+--GO  
+--
+--CREATE FUNCTION CustomerIDManipulator(@id INT)
+--RETURNS INT 
+--BEGIN
+--  RETURN @id * 10
+--
+--END
+--
+--GO
 
 
 
+WITH HR_CTE AS (
+SELECT EmployeeCountry, COUNT(*) AS numlocations
+FROM (SELECT EmployeeCountry, EmployeeRegion, EmployeeCity FROM HumanResources.Employee
+      UNION
+      SELECT CustomerCountry, CustomerRegion, CustomerCity FROM Sales.Customer) AS U
+ 
+
+GROUP BY EmployeeCountry
+)
+
+
+SELECT DISTINCT TOP 100 SO.CustomerId, EmployeeCountry, numlocations
+FROM HR_CTE as HR
+CROSS JOIN Sales.[Order] as SO
+ORDER BY SO.CustomerId DESC 
+
+
+
+
+GO
+
+
+USE NORTHWINDS2022TSQLV7;
+
+--NO ACCESS TO USING FUNCTION AND COMPUTER COUDLNT INSTALL DOCKER
+--DROP FUNCTION IF EXISTS CustomerIDManipulator;
+--
+--GO  
+--
+--CREATE FUNCTION CustomerIDManipulator(@id INT)
+--RETURNS INT 
+--BEGIN
+--  RETURN @id * 10
+--
+--END
+--
+--GO
+
+WITH HR_CTE AS (
+SELECT EmployeeCountry, COUNT(*) AS numlocations
+FROM (SELECT EmployeeCountry, EmployeeRegion, EmployeeCity FROM HumanResources.Employee
+      UNION
+      SELECT CustomerCountry, CustomerRegion, CustomerCity FROM Sales.Customer) AS U
+
+GROUP BY EmployeeCountry
+HAVING EmployeeCountry LIKE N'S%'
+
+)
+
+
+SELECT DISTINCT TOP 100 SO.CustomerId, EmployeeCountry, numlocations
+FROM HR_CTE as HR
+CROSS JOIN Sales.[Order] as SO
+ORDER BY SO.CustomerId ASC 
+
+
+
+
+GO
+
+USE NORTHWINDS2022TSQLV7;
+
+--NO ACCESS TO USING FUNCTION AND COMPUTER COUDLNT INSTALL DOCKER
+--DROP FUNCTION IF EXISTS CustomerIDManipulator;
+--
+--GO  
+--
+--CREATE FUNCTION CustomerIDManipulator(@id INT)
+--RETURNS INT 
+--BEGIN
+--  RETURN @id * 10
+--
+--END
+--
+--GO
+
+WITH HR_CTE AS (
+SELECT EmployeeCountry, COUNT(*) AS numlocations
+FROM (SELECT EmployeeCountry, EmployeeRegion, EmployeeCity FROM HumanResources.Employee
+      UNION
+      SELECT CustomerCountry, CustomerRegion, CustomerCity FROM Sales.Customer) AS U
+
+GROUP BY EmployeeCountry
+HAVING EmployeeCountry LIKE N'S%P%'
+
+)
+
+
+SELECT DISTINCT TOP 100 SO.CustomerId, EmployeeCountry, numlocations
+FROM HR_CTE as HR
+CROSS JOIN Sales.[Order] as SO
+ORDER BY SO.CustomerId ASC 
 
 
 
